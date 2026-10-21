@@ -2,52 +2,79 @@
 #include <vector>
 #include <chrono>
 #include <fstream>
+#include <algorithm>
+#include <random>
+#include <string>
 using namespace std;
 
-void shell(vector<int>& a) {
-    int n = a.size();
-    for (int s=n/2; s>0; s/=2)
-        for (int i=s; i<n; i++) {
-            int x=a[i], j=i;
-            while (j>=s && a[j-s]>x)
-                a[j]=a[j-s], j-=s;
-            a[j]=x;
-        }
+struct M {
+    long long comp = 0, interc = 0;
+    int prof = 0;
+};
+
+void shell(vector<int>& a, M& m) {
+    for (int g = a.size()/2; g > 0; g /= 2)
+        for (int i = g; i < a.size(); i++)
+            for (int j = i; j >= g; j -= g) {
+                m.comp++;
+                if (a[j-g] <= a[j]) break;
+                swap(a[j-g], a[j]);
+                m.interc++;
+            }
 }
 
-void quick(vector<int>& a, int l, int r) {
-    if (l>=r) return;
-    int p=a[r], i=l-1;
-    for (int j=l; j<r; j++)
-        if (a[j]<p) swap(a[++i],a[j]);
-    swap(a[i+1],a[r]);
-    quick(a,l,i);
-    quick(a,i+2,r);
+void quick(vector<int>& a, int l, int r, M& m, int d=1) {
+    if (l >= r) return;
+    m.prof = max(m.prof, d);
+    int i=l, j=r, p=a[l+(r-l)/2];
+    while (i <= j) {
+        while (i <= r && (++m.comp, a[i] < p)) i++;
+        while (j >= l && (++m.comp, a[j] > p)) j--;
+        if (i <= j) {
+            if (i < j) swap(a[i],a[j]), m.interc++;
+            i++; j--;
+        }
+    }
+    if (l < j) quick(a,l,j,m,d+1);
+    if (i < r) quick(a,i,r,m,d+1);
 }
 
 int main() {
+    const int semilla = 12345;
+    mt19937 gen(semilla);
     ofstream f("results/comparacion.csv");
-    f << "metodo,tamano,tiempo_ms\n";
+    if (!f) { cout << "Error al crear CSV\n"; return 1; }
 
-    for (int n : {100,1000,5000}) {
-        vector<int> original(n);
-        for (int i=0; i<n; i++) original[i]=(i*37+13)%1000;
+    ifstream h("results/commit.txt");
+    string hash = "pendiente";
+    if (h) getline(h,hash);
 
-        vector<int> a=original;
-        auto t=chrono::steady_clock::now();
-        shell(a);
-        double s=chrono::duration<double,milli>(
-            chrono::steady_clock::now()-t).count();
+    f << "metodo,n,patron,repeticion,ms,comparaciones,"
+         "intercambios,profundidad,semilla,commit,ordenado\n";
 
-        a=original;
-        t=chrono::steady_clock::now();
-        quick(a,0,n-1);
-        double q=chrono::duration<double,milli>(
-            chrono::steady_clock::now()-t).count();
+    for (int n : {1000,10000,100000})
+      for (string pat : {"aleatorio","ascendente","descendente"}) {
+        vector<int> base(n);
+        for (int i=0;i<n;i++) base[i]=i;
+        if (pat=="aleatorio") shuffle(base.begin(),base.end(),gen);
+        if (pat=="descendente") reverse(base.begin(),base.end());
 
-        cout << "N=" << n << " Shell=" << s
-             << " ms Quick=" << q << " ms\n";
-        f << "Shell Sort," << n << "," << s << "\n";
-        f << "Quick Sort," << n << "," << q << "\n";
-    }
+        for (int rep=1;rep<=30;rep++)
+          for (string alg : {"Shell","Quick"}) {
+            vector<int> a=base;
+            M m;
+            auto ini=chrono::steady_clock::now();
+            if (alg=="Shell") shell(a,m);
+            else quick(a,0,n-1,m);
+            double ms=chrono::duration<double,milli>(
+                chrono::steady_clock::now()-ini).count();
+
+            f << alg << "," << n << "," << pat << "," << rep
+              << "," << ms << "," << m.comp << "," << m.interc
+              << "," << m.prof << "," << semilla << "," << hash
+              << "," << is_sorted(a.begin(),a.end()) << "\n";
+          }
+        cout << "Terminado: " << n << " " << pat << "\n";
+      }
+    cout << "Resultados guardados en results/comparacion.csv\n";
 }
