@@ -1,0 +1,9 @@
+# Ejecutables de Windows
+*.exe
+
+# Archivos objeto
+*.o
+*.obj
+
+# Resultados experimentales generados
+results/*.csv
