@@ -1,66 +1,53 @@
 #include <iostream>
+#include <vector>
 #include <chrono>
+#include <fstream>
 using namespace std;
-using namespace chrono;
 
-void shellSort(int a[], int n) {
-    for (int gap = n / 2; gap > 0; gap /= 2) {
-        for (int i = gap; i < n; i++) {
-            int temp = a[i];
-            int j = i;
-
-            while (j >= gap && a[j - gap] > temp) {
-                a[j] = a[j - gap];
-                j -= gap;
-            }
-            a[j] = temp;
+void shell(vector<int>& a) {
+    int n = a.size();
+    for (int s=n/2; s>0; s/=2)
+        for (int i=s; i<n; i++) {
+            int x=a[i], j=i;
+            while (j>=s && a[j-s]>x)
+                a[j]=a[j-s], j-=s;
+            a[j]=x;
         }
-    }
 }
 
-void quickSort(int a[], int l, int r) {
-    int i = l, j = r;
-    int p = a[(l + r) / 2];
-
-    while (i <= j) {
-        while (a[i] < p) i++;
-        while (a[j] > p) j--;
-
-        if (i <= j) {
-            swap(a[i], a[j]);
-            i++;
-            j--;
-        }
-    }
-
-    if (l < j) quickSort(a, l, j);
-    if (i < r) quickSort(a, i, r);
+void quick(vector<int>& a, int l, int r) {
+    if (l>=r) return;
+    int p=a[r], i=l-1;
+    for (int j=l; j<r; j++)
+        if (a[j]<p) swap(a[++i],a[j]);
+    swap(a[i+1],a[r]);
+    quick(a,l,i);
+    quick(a,i+2,r);
 }
 
 int main() {
-    int a[] = {8, 3, 7, 4, 2};
-    int b[] = {8, 3, 7, 4, 2};
-    int n = 5;
+    ofstream f("results/comparacion.csv");
+    f << "metodo,tamano,tiempo_ms\n";
 
-    auto inicio = steady_clock::now();
-    shellSort(a, n);
-    auto fin = steady_clock::now();
+    for (int n : {100,1000,5000}) {
+        vector<int> original(n);
+        for (int i=0; i<n; i++) original[i]=(i*37+13)%1000;
 
-    cout << "Shell Sort: ";
-    for (int x : a) cout << x << " ";
-    cout << "\nTiempo: "
-         << duration<double, milli>(fin - inicio).count()
-         << " ms\n";
+        vector<int> a=original;
+        auto t=chrono::steady_clock::now();
+        shell(a);
+        double s=chrono::duration<double,milli>(
+            chrono::steady_clock::now()-t).count();
 
-    inicio = steady_clock::now();
-    quickSort(b, 0, n - 1);
-    fin = steady_clock::now();
+        a=original;
+        t=chrono::steady_clock::now();
+        quick(a,0,n-1);
+        double q=chrono::duration<double,milli>(
+            chrono::steady_clock::now()-t).count();
 
-    cout << "Quick Sort: ";
-    for (int x : b) cout << x << " ";
-    cout << "\nTiempo: "
-         << duration<double, milli>(fin - inicio).count()
-         << " ms\n";
-
-    return 0;
+        cout << "N=" << n << " Shell=" << s
+             << " ms Quick=" << q << " ms\n";
+        f << "Shell Sort," << n << "," << s << "\n";
+        f << "Quick Sort," << n << "," << q << "\n";
+    }
 }
