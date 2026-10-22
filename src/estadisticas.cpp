@@ -1,7 +1,5 @@
-
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <vector>
 #include <algorithm>
 #include <cmath>
@@ -9,37 +7,30 @@ using namespace std;
 
 int main() {
     ifstream f("results/comparacion.csv");
-    string linea, campo;
-    vector<double> tiempos;
+    ofstream out("results/estadisticas.csv");
+    string linea;
+    vector<double> v;
+    double ms;
 
     getline(f, linea);
-
     while (getline(f, linea)) {
-        stringstream s(linea);
-        for (int i = 0; i < 5; i++)
-            getline(s, campo, ',');
-        tiempos.push_back(stod(campo));
+        for (int i=0; i<4; i++)
+            linea = linea.substr(linea.find(',')+1);
+        ms = stod(linea.substr(0, linea.find(',')));
+        v.push_back(ms);
     }
 
-    if (tiempos.empty()) {
-        cout << "No hay datos\n";
-        return 1;
-    }
+    sort(v.begin(), v.end());
+    double suma=0, d=0;
+    for (double x:v) suma+=x;
+    double prom=suma/v.size();
+    for (double x:v) d+=(x-prom)*(x-prom);
 
-    sort(tiempos.begin(), tiempos.end());
-    double suma = 0, cuadrados = 0;
+    out << "cantidad,media,mediana,desviacion,minimo,maximo\n"
+        << v.size() << "," << prom << ","
+        << (v[269]+v[270])/2 << ","
+        << sqrt(d/v.size()) << "," << v.front()
+        << "," << v.back() << "\n";
 
-    for (double x : tiempos) suma += x;
-    double promedio = suma / tiempos.size();
-
-    for (double x : tiempos)
-        cuadrados += (x - promedio) * (x - promedio);
-
-    cout << "Cantidad: " << tiempos.size() << "\n";
-    cout << "Promedio: " << promedio << " ms\n";
-    cout << "Mediana: " << tiempos[tiempos.size()/2] << " ms\n";
-    cout << "Desviacion estandar: "
-         << sqrt(cuadrados / tiempos.size()) << " ms\n";
-    cout << "Minimo: " << tiempos.front() << " ms\n";
-    cout << "Maximo: " << tiempos.back() << " ms\n";
+    cout << "Estadisticas guardadas\n";
 }
